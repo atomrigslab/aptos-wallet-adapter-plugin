@@ -143,10 +143,10 @@ export class DekeyWallet implements AdapterPlugin {
 
   async network(): Promise<NetworkInfo> {
     try {
-      const chainId = await this.provider?.request({
-        method: "eth_chainId",
+      const result = await this.provider?.request({
+        method: "aptos_network",
       });
-      let networkName = NetworkName.Devnet;
+      // let networkName = NetworkName.Devnet;
       // if (chainId === "0x1") {
       //   networkName = NetworkName.Mainnet;
       // } else if (chainId === "0x2") {
@@ -155,7 +155,7 @@ export class DekeyWallet implements AdapterPlugin {
       //   networkName = NetworkName.Devnet;
       // }
       return {
-        name: networkName as NetworkName,
+        name: result.name as NetworkName,
       };
     } catch (error: any) {
       throw error;
