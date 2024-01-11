@@ -1,6 +1,6 @@
 {
-  "name": "dekey-wallet-adapter-plugin",
-  "version": "0.2.0",
+  "name": "@atomrigslab/dekey-wallet-adapter-plugin",
+  "version": "0.0.1",
   "description": "Adapter template plugin to use with Aptos Wallet Adapter",
   "author": "Aptos",
   "main": "./dist/index.js",
