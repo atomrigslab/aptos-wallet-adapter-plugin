@@ -71,9 +71,15 @@ export class Twallet implements AdapterPlugin {
   }
 
   async account(): Promise<AccountInfo> {
-    const response = await this.provider?.account();
+    const response = await this.provider?.request({
+      method: "aptos_account",
+    });
     if (!response) throw `${walletName} Account Error`;
-    return response;
+
+    return {
+      address: response.address,
+      publicKey: response.publicKey,
+    };
   }
 
   async disconnect(): Promise<void> {
