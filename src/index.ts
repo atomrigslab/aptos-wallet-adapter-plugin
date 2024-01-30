@@ -50,12 +50,34 @@ export class Twallet implements AdapterPlugin {
 
   provider: any = typeof window !== "undefined" ? window.dekey : undefined;
 
-  constructor(provider: any) {
-    this.provider = provider;
+  private env: string;
+
+  constructor(env: "LOCAL" | "DEV" | "QA" | "PROD") {
+    if (typeof window !== "undefined") {
+      window.dekey = {} as any;
+    }
+    this.env = env;
   }
 
   async connect(): Promise<AccountInfo> {
     try {
+      // if provider is already initialized
+      if (Object.keys(this.provider).length === 0) {
+        await import(
+          // @ts-ignore
+          "@atomrigslab/dekey-web-wallet-provider"
+        );
+        const walletDomain = this.getWalletDomain();
+        if (!walletDomain) {
+          throw new Error("ENV not found");
+        }
+        if (!window?.initializeDekeyProvider) {
+          throw new Error("initializeDekeyProvider not defined");
+        }
+        await window.initializeDekeyProvider(walletDomain);
+        this.provider = window.dekey;
+      }
+
       const accountInfo = await this.provider?.request({
         method: "aptos_requestAccounts",
       });
@@ -83,11 +105,7 @@ export class Twallet implements AdapterPlugin {
   }
 
   async disconnect(): Promise<void> {
-    try {
-      // await this.provider?.disconnect();
-    } catch (error: any) {
-      throw error;
-    }
+    throw new Error("Disconnect not supported.");
   }
 
   async signAndSubmitTransaction(
@@ -113,25 +131,25 @@ export class Twallet implements AdapterPlugin {
     transaction: TxnBuilderTypes.TransactionPayload,
     options?: any
   ): Promise<{ hash: Types.HexEncodedBytes }> {
-    throw new Error("signAndSubmitBCSTransaction not supported yet");
-    console.log("signAndSubmitBCSTransaction", { transaction, options });
-    try {
-      const response = await this.provider?.request({
-        method: "aptos_signAndSubmitTransaction",
-        params: [transaction, options],
-      });
-      // const response = await this.provider?.signAndSubmitTransaction(
-      //   transaction,
-      //   options
-      // );
-      if ((response as AptosWalletErrorResult).code) {
-        throw new Error((response as AptosWalletErrorResult).message);
-      }
-      return response as { hash: Types.HexEncodedBytes };
-    } catch (error: any) {
-      const errMsg = error.message;
-      throw errMsg;
-    }
+    throw new Error("signAndSubmitBCSTransaction not supported.");
+    // console.log("signAndSubmitBCSTransaction", { transaction, options });
+    // try {
+    //   const response = await this.provider?.request({
+    //     method: "aptos_signAndSubmitTransaction",
+    //     params: [transaction, options],
+    //   });
+    //   // const response = await this.provider?.signAndSubmitTransaction(
+    //   //   transaction,
+    //   //   options
+    //   // );
+    //   if ((response as AptosWalletErrorResult).code) {
+    //     throw new Error((response as AptosWalletErrorResult).message);
+    //   }
+    //   return response as { hash: Types.HexEncodedBytes };
+    // } catch (error: any) {
+    //   const errMsg = error.message;
+    //   throw errMsg;
+    // }
   }
 
   async signMessage(message: SignMessagePayload): Promise<SignMessageResponse> {
@@ -157,20 +175,20 @@ export class Twallet implements AdapterPlugin {
   async signTransaction(
     transaction: Types.TransactionPayload | TxnBuilderTypes.TransactionPayload
   ): Promise<{ hash: Types.HexEncodedBytes }> {
-    throw new Error("signTransaction not supported yet");
-    try {
-      const response = await this.provider?.request({
-        method: "aptos_signTransaction",
-        params: [transaction],
-      });
-      if ((response as AptosWalletErrorResult).code) {
-        throw new Error((response as AptosWalletErrorResult).message);
-      }
-      return response as { hash: Types.HexEncodedBytes };
-    } catch (error: any) {
-      const errMsg = error.message;
-      throw errMsg;
-    }
+    throw new Error("signTransaction not supported.");
+    // try {
+    //   const response = await this.provider?.request({
+    //     method: "aptos_signTransaction",
+    //     params: [transaction],
+    //   });
+    //   if ((response as AptosWalletErrorResult).code) {
+    //     throw new Error((response as AptosWalletErrorResult).message);
+    //   }
+    //   return response as { hash: Types.HexEncodedBytes };
+    // } catch (error: any) {
+    //   const errMsg = error.message;
+    //   throw errMsg;
+    // }
   }
 
   async network(): Promise<NetworkInfo> {
@@ -189,46 +207,50 @@ export class Twallet implements AdapterPlugin {
   }
 
   async onNetworkChange(callback: any): Promise<void> {
-    // try {
-    //   const handleNetworkChange = async (
-    //     newNetwork: NetworkInfo
-    //   ): Promise<void> => {
-    //     callback({
-    //       name: newNetwork.name,
-    //       chainId: undefined,
-    //       api: undefined,
-    //     });
-    //   };
-    //   await this.provider?.onNetworkChange(handleNetworkChange);
-    // } catch (error: any) {
-    //   const errMsg = error.message;
-    //   throw errMsg;
-    // }
+    const handleNetworkChange = async (): Promise<void> => {
+      const networkInfo = await this.network();
+      const { name, chainId, url } = networkInfo;
+      callback({
+        name,
+        chainId,
+        url,
+      });
+    };
+    this.provider.on("chainChanged", () => {
+      handleNetworkChange();
+    });
   }
 
   async onAccountChange(callback: any): Promise<void> {
     try {
-      // const handleAccountChange = async (
-      //   newAccount: AccountInfo
-      // ): Promise<void> => {
-      //   if (newAccount?.publicKey) {
-      //     callback({
-      //       publicKey: newAccount.publicKey,
-      //       address: newAccount.address,
-      //     });
-      //   } else {
-      //     const response = await this.connect();
-      //     callback({
-      //       address: response?.address,
-      //       publicKey: response?.publicKey,
-      //     });
-      //   }
-      // };
-      // await this.provider?.onAccountChange(handleAccountChange);
+      const handleAccountChange = async (): Promise<void> => {
+        const response = await this.connect();
+        callback({
+          address: response?.address,
+          publicKey: response?.publicKey,
+        });
+        this.provider.on("accountsChanged", () => {
+          handleAccountChange();
+        });
+      };
     } catch (error: any) {
-      console.log(error);
       const errMsg = error.message;
       throw errMsg;
     }
   }
+
+  private getWalletDomain = () => {
+    if (this.env === "LOCAL") {
+      return "http://localhost:5173";
+    }
+    if (this.env === "DEV") {
+      return "https://dev.twallet.ai";
+    }
+    if (this.env === "QA") {
+      return "https://qa.twallet.ai";
+    }
+    if (this.env === "PROD") {
+      return "https://twallet.ai";
+    }
+  };
 }
